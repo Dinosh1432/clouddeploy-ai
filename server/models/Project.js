@@ -18,6 +18,39 @@ const projectSchema = new mongoose.Schema(
             trim: true
         },
 
+        // GitHub repository information
+        github: {
+            owner: {
+                type: String,
+                trim: true
+            },
+
+            repo: {
+                type: String,
+                trim: true
+            },
+
+            fullName: {
+                type: String,
+                trim: true
+            },
+
+            defaultBranch: {
+                type: String,
+                trim: true
+            },
+
+            language: {
+                type: String,
+                trim: true
+            },
+
+            private: {
+                type: Boolean,
+                default: false
+            }
+        },
+
         status: {
             type: String,
             default: "created"
