@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Deploy from "./pages/Deploy";
 
 function App() {
     return (
@@ -28,6 +29,11 @@ function App() {
                 <Route
                     path="/dashboard"
                     element={<Dashboard />}
+                />
+
+                <Route
+                    path="/deploy"
+                    element={<Deploy />}
                 />
 
             </Routes>
