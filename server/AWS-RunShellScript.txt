@@ -1,0 +1,6 @@
+{
+  "commands": [
+    "cd /home/ubuntu/clouddeploy-ai",
+    "git config --local safe.directory /home/ubuntu/clouddeploy-ai"
+  ]
+}
