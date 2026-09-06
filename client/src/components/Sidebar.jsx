@@ -24,12 +24,12 @@ function Sidebar() {
                     Dashboard
                 </a>
 
-                <a href="#">
+                <a href="/projects">
                     <FolderGit2 size={20} />
                     Projects
                 </a>
 
-                <a href="#">
+                <a href="/deploy">
                     <Rocket size={20} />
                     Deployments
                 </a>

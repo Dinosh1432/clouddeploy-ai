@@ -39,6 +39,11 @@ const getContentType = (filePath) => {
 
 const getFiles = (directory) => {
 
+    const ignoredDirectories = [
+        ".git",
+        "node_modules"
+    ];
+
     const entries =
         fs.readdirSync(
             directory,
@@ -48,6 +53,18 @@ const getFiles = (directory) => {
     let files = [];
 
     for (const entry of entries) {
+
+        // Ignore unnecessary/private folders
+        if (
+            entry.isDirectory() &&
+            ignoredDirectories.includes(entry.name)
+        ) {
+            console.log(
+                `Skipping directory: ${entry.name}`
+            );
+
+            continue;
+        }
 
         const fullPath =
             path.join(
@@ -69,7 +86,6 @@ const getFiles = (directory) => {
 
     return files;
 };
-
 
 const uploadDirectory = async (
     directory,

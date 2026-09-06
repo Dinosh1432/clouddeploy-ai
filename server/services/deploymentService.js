@@ -1,4 +1,8 @@
 const path = require("path");
+const fs = require("fs");
+const os = require("os");
+
+const simpleGit = require("simple-git");
 
 const {
     uploadDirectory
@@ -10,39 +14,361 @@ const {
 
 const {
     executeCommand,
-    verifyBackend
+    verifyBackend,
+    deployBackend: deployBackendToEC2
 } = require("./ec2DeploymentService");
 
 
-const deployFrontend = async (repositoryPath) => {
+/*
+    Clone GitHub repository
+*/
+const createProjectSlug = (projectName) => {
+    return projectName
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+};
+
+
+const getProjectApiUrl = (projectName) => {
+
+    const projectSlug =
+        createProjectSlug(projectName);
+
+    return `http://3.111.169.23/${projectSlug}/api`;
+};
+
+const cloneRepository = async (repositoryUrl) => {
+
+    const tempDirectory = fs.mkdtempSync(
+        path.join(os.tmpdir(), "clouddeploy-")
+    );
+
+    console.log(
+        "Temporary directory:",
+        tempDirectory
+    );
+
+    const git = simpleGit();
+
+    console.log(
+        "Cloning repository:",
+        repositoryUrl
+    );
+
+    await git.clone(
+        repositoryUrl,
+        tempDirectory
+    );
+
+    console.log(
+        "Repository cloned successfully"
+    );
+
+    return tempDirectory;
+};
+
+
+/*
+    Build frontend
+*/
+
+const buildFrontend = async (
+    repositoryPath,
+    project
+) => {
+
+    const clientDirectory = path.join(
+        repositoryPath,
+        "client"
+    );
+
+    const rootPackageJson = path.join(
+        repositoryPath,
+        "package.json"
+    );
+
+    const clientPackageJson = path.join(
+        clientDirectory,
+        "package.json"
+    );
+
+    const clientIndexHtml = path.join(
+        clientDirectory,
+        "index.html"
+    );
+
+    const rootIndexHtml = path.join(
+        repositoryPath,
+        "index.html"
+    );
+
+
+    // ==============================================
+    // API URL
+    // ==============================================
+
+    const apiUrl =
+        getProjectApiUrl(project.name);
+
+    console.log(
+        "Frontend API URL:",
+        apiUrl
+    );
+
+
+    // ==============================================
+    // CASE 1
+    // React / Vite frontend inside client/
+    // ==============================================
+
+    if (fs.existsSync(clientPackageJson)) {
+
+        console.log(
+            "Detected frontend inside client directory"
+        );
+
+        console.log(
+            "Installing frontend dependencies..."
+        );
+
+        await executeLocalCommand(
+            "npm install",
+            clientDirectory
+        );
+
+
+        console.log(
+            "Building frontend..."
+        );
+
+        console.log(
+            "Injecting VITE_API_URL:",
+            apiUrl
+        );
+
+
+        await executeLocalCommand(
+            `set "VITE_API_URL=${apiUrl}" && npm run build`,
+            clientDirectory
+        );
+
+
+        const distDirectory =
+            path.join(
+                clientDirectory,
+                "dist"
+            );
+
+
+        if (!fs.existsSync(distDirectory)) {
+
+            throw new Error(
+                "Frontend build completed but dist directory was not found"
+            );
+        }
+
+
+        console.log(
+            "Frontend build completed successfully"
+        );
+
+
+        return distDirectory;
+    }
+
+
+    // ==============================================
+    // CASE 2
+    // Frontend at repository root
+    // ==============================================
+
+    if (fs.existsSync(rootPackageJson)) {
+
+        console.log(
+            "Detected frontend at repository root"
+        );
+
+
+        console.log(
+            "Installing frontend dependencies..."
+        );
+
+
+        await executeLocalCommand(
+            "npm install",
+            repositoryPath
+        );
+
+
+        console.log(
+            "Building frontend..."
+        );
+
+
+        console.log(
+            "Injecting VITE_API_URL:",
+            apiUrl
+        );
+
+
+        await executeLocalCommand(
+            `set "VITE_API_URL=${apiUrl}" && npm run build`,
+            repositoryPath
+        );
+
+
+        const distDirectory =
+            path.join(
+                repositoryPath,
+                "dist"
+            );
+
+
+        if (!fs.existsSync(distDirectory)) {
+
+            throw new Error(
+                "Frontend build completed but dist directory was not found"
+            );
+        }
+
+
+        console.log(
+            "Frontend build completed successfully"
+        );
+
+
+        return distDirectory;
+    }
+
+
+    // ==============================================
+    // CASE 3
+    // Static HTML inside client/
+    // ==============================================
+
+    if (fs.existsSync(clientIndexHtml)) {
+
+        console.log(
+            "Detected static frontend inside client directory"
+        );
+
+        return clientDirectory;
+    }
+
+
+    // ==============================================
+    // CASE 4
+    // Static HTML at repository root
+    // ==============================================
+
+    if (fs.existsSync(rootIndexHtml)) {
+
+        console.log(
+            "Detected static frontend at repository root"
+        );
+
+        return repositoryPath;
+    }
+
+
+    throw new Error(
+        "Unable to detect frontend. No package.json or index.html found."
+    );
+};
+
+/*
+    Execute local Windows command
+*/
+const executeLocalCommand = (command, cwd) => {
+
+    return new Promise((resolve, reject) => {
+
+        const { exec } = require("child_process");
+
+        exec(
+            command,
+            {
+                cwd,
+                maxBuffer: 1024 * 1024 * 10
+            },
+            (error, stdout, stderr) => {
+
+                if (error) {
+
+                    console.error(
+                        "Command failed:",
+                        command
+                    );
+
+                    console.error(stderr);
+
+                    return reject(error);
+                }
+
+                console.log(stdout);
+
+                resolve(stdout);
+            }
+        );
+    });
+};
+
+
+/*
+    Deploy frontend to S3
+*/
+const deployFrontend = async (
+    repositoryPath,
+    project
+) => {
 
     try {
 
-        console.log("Starting frontend deployment...");
-
-        const distDirectory = path.join(
-            repositoryPath,
-            "client",
-            "dist"
+        console.log(
+            "Starting frontend deployment..."
         );
+
+
+        const apiUrl =
+            getProjectApiUrl(project.name);
+
+
+        console.log(
+            "Project API URL:",
+            apiUrl
+        );
+
+
+        const distDirectory =
+            await buildFrontend(
+                repositoryPath,
+                project
+            );
+
 
         const {
             bucketName,
             websiteUrl
         } = await createDeploymentBucket();
 
+
         await uploadDirectory(
             distDirectory,
             bucketName
         );
 
+
         console.log(
             "Frontend deployment completed!"
         );
 
+
         return {
             bucketName,
-            websiteUrl
+            websiteUrl,
+            apiUrl
         };
 
     } catch (error) {
@@ -60,33 +386,96 @@ const deployFrontend = async (repositoryPath) => {
 /*
     Deploy backend to EC2
 */
-const deployBackend = async () => {
+/*
+    Deploy backend to EC2
+*/
+/*
+    Deploy backend to EC2
+*/
+const deployBackend = async (repositoryPath, project) => {
 
     try {
 
         console.log(
-            "Starting backend deployment..."
+            "Checking backend for selected project..."
         );
 
-        const result = await executeCommand([
-            "cd /home/ubuntu/clouddeploy-ai",
-            "git pull",
-            "cd server",
-            "npm install",
-            "pm2 restart clouddeploy-backend --update-env || pm2 start server.js --name clouddeploy-backend",
-            "pm2 save",
-            "pm2 pid clouddeploy-backend"
-        ]);
-        const verification = await verifyBackend();
+        const serverDirectory =
+            path.join(repositoryPath, "server");
+
+        const serverPackageJson =
+            path.join(serverDirectory, "package.json");
+
+
+        if (!fs.existsSync(serverPackageJson)) {
+
+            console.log(
+                "No backend detected in selected project"
+            );
+
+            return {
+                status: "Not Required",
+                message:
+                    "This project does not contain a backend"
+            };
+        }
+
 
         console.log(
-            "Backend deployment completed!"
+            "Backend detected in selected project"
         );
 
+
+        const projectName =
+            project.name
+                .toLowerCase()
+                .replace(/[^a-z0-9-]/g, "-");
+
+
+        console.log(
+            "Project name:",
+            projectName
+        );
+
+
+        // Deploy backend to EC2
+        const deploymentResult =
+            await deployBackendToEC2(
+                project.repositoryUrl,
+                projectName
+            );
+
+
+        // Verify backend using the actual deployed port
+        const verification =
+            await verifyBackend(deploymentResult.port);
+
+
+        console.log(
+            "Backend verification successful"
+        );
+
+
         return {
-    ...result,
-    verification
-    };
+
+            status: "Deployed",
+
+            message:
+                "Backend deployed successfully",
+
+            commandId:
+                deploymentResult.commandId,
+
+            port:
+                deploymentResult.port,
+
+            httpStatus:
+                verification.statusCode,
+
+            verified:
+                verification.verified
+
+        };
 
     } catch (error) {
 
@@ -98,7 +487,9 @@ const deployBackend = async () => {
         throw error;
     }
 };
-const deployApplication = async (repositoryPath) => {
+const deployApplication = async (project) => {
+
+    let repositoryPath = null;
 
     try {
 
@@ -106,20 +497,59 @@ const deployApplication = async (repositoryPath) => {
         console.log("Starting full application deployment");
         console.log("================================");
 
-        // 1. Deploy frontend
-        const frontendResult =
-            await deployFrontend(repositoryPath);
+        console.log(
+            "Project:",
+            project.name
+        );
 
-        // 2. Deploy backend
+        console.log(
+            "Repository:",
+            project.repositoryUrl
+        );
+
+
+        /*
+            1. Clone GitHub repository
+        */
+
+        repositoryPath =
+            await cloneRepository(
+                project.repositoryUrl
+            );
+
+
+        /*
+            2. Build and deploy frontend
+        */
+
+        const frontendResult =
+        await deployFrontend(
+        repositoryPath,
+        project
+    );
+
+
+        /*
+            3. Deploy backend
+        */
+
         const backendResult =
-            await deployBackend();
+        await deployBackend(repositoryPath, project);
+
 
         console.log("================================");
         console.log("Full deployment completed");
         console.log("================================");
 
+
         return {
+
             success: true,
+
+            project: {
+                id: project._id,
+                name: project.name
+            },
 
             frontend: frontendResult,
 
@@ -134,11 +564,47 @@ const deployApplication = async (repositoryPath) => {
         );
 
         throw error;
+
+    } finally {
+
+        /*
+            Delete temporary cloned repository
+        */
+
+        if (repositoryPath) {
+
+            try {
+
+                fs.rmSync(
+                    repositoryPath,
+                    {
+                        recursive: true,
+                        force: true
+                    }
+                );
+
+                console.log(
+                    "Temporary repository deleted"
+                );
+
+            } catch (cleanupError) {
+
+                console.error(
+                    "Cleanup failed:",
+                    cleanupError.message
+                );
+            }
+        }
     }
 };
 
+
 module.exports = {
+
     deployFrontend,
+
     deployBackend,
+
     deployApplication
+
 };

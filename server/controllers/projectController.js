@@ -32,8 +32,11 @@ const parseGithubUrl = (url) => {
 
 // Create a project
 const createProject = async (req, res) => {
-    try {
 
+    
+    try {
+        console.log("CREATE PROJECT API HIT");
+    console.log("BODY:", req.body);
         const {
             name,
             description,

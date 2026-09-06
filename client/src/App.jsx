@@ -4,6 +4,7 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Deploy from "./pages/Deploy";
+import Projects from "./pages/Projects";
 
 function App() {
     return (
@@ -30,7 +31,10 @@ function App() {
                     path="/dashboard"
                     element={<Dashboard />}
                 />
-
+                <Route
+                path="/projects"
+                element={<Projects />}
+                />
                 <Route
                     path="/deploy"
                     element={<Deploy />}
