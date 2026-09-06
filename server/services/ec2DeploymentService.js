@@ -19,6 +19,11 @@ const createProjectSlug = (projectName) => {
         .replace(/^-+|-+$/g, "");
 };
 
+
+// ==========================================
+// EXECUTE SSM COMMAND
+// ==========================================
+
 const executeCommand = async (commands) => {
     console.log("Executing commands on EC2:", commands);
 
@@ -31,6 +36,7 @@ const executeCommand = async (commands) => {
     });
 
     const response = await ssmClient.send(command);
+
     const commandId = response.Command.CommandId;
 
     console.log("SSM Command ID:", commandId);
@@ -39,7 +45,10 @@ const executeCommand = async (commands) => {
     let result;
 
     for (let i = 0; i < 150; i++) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        await new Promise(resolve =>
+            setTimeout(resolve, 2000)
+        );
 
         result = await ssmClient.send(
             new GetCommandInvocationCommand({
@@ -50,7 +59,9 @@ const executeCommand = async (commands) => {
 
         status = result.Status;
 
-        console.log(`Command status: ${status} (${i + 1}/150)`);
+        console.log(
+            `Command status: ${status} (${i + 1}/150)`
+        );
 
         if (
             status === "Success" ||
@@ -63,7 +74,10 @@ const executeCommand = async (commands) => {
         }
     }
 
-    if (status === "Pending" || status === "InProgress") {
+    if (
+        status === "Pending" ||
+        status === "InProgress"
+    ) {
         throw new Error(
             `EC2 command timed out while waiting for completion. Status: ${status}`
         );
@@ -85,13 +99,12 @@ const executeCommand = async (commands) => {
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| Configure Nginx automatically
-|--------------------------------------------------------------------------
-*/
+// ==========================================
+// NGINX CONFIGURATION
+// ==========================================
 
 const configureNginx = async (projectName, port) => {
+
     const projectSlug = createProjectSlug(projectName);
 
     console.log(
@@ -124,6 +137,7 @@ location /${projectSlug}/api/ {
         .replace(/\$/g, "\\$");
 
     const commands = [
+
         "sudo mkdir -p /etc/nginx/clouddeploy-projects",
 
         `echo "${escapedConfig}" | sudo tee /etc/nginx/clouddeploy-projects/${projectSlug}.conf > /dev/null`,
@@ -144,19 +158,21 @@ location /${projectSlug}/api/ {
     return {
         projectSlug,
         port,
-        apiUrl: `http://${EC2_PUBLIC_IP}/${projectSlug}/api`
+        apiUrl:
+            `http://${EC2_PUBLIC_IP}/${projectSlug}/api`
     };
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| Verify Backend
-|--------------------------------------------------------------------------
-*/
+// ==========================================
+// VERIFY BACKEND
+// ==========================================
 
 const verifyBackend = async (port) => {
-    console.log(`Verifying backend on EC2 port: ${port}`);
+
+    console.log(
+        `Verifying backend on EC2 port: ${port}`
+    );
 
     const result = await executeCommand([
         `curl -s -o /dev/null -w '%{http_code}' http://localhost:${port}`
@@ -164,15 +180,23 @@ const verifyBackend = async (port) => {
 
     const statusCode = result.output.trim();
 
-    console.log("Backend HTTP status:", statusCode);
+    console.log(
+        "Backend HTTP status:",
+        statusCode
+    );
 
-    if (statusCode !== "200" && statusCode !== "404") {
+    if (
+        statusCode !== "200" &&
+        statusCode !== "404"
+    ) {
         throw new Error(
             `Backend verification failed. HTTP status: ${statusCode}`
         );
     }
 
-    console.log("Backend verification successful");
+    console.log(
+        "Backend verification successful"
+    );
 
     return {
         verified: true,
@@ -182,14 +206,18 @@ const verifyBackend = async (port) => {
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| Deploy Backend
-|--------------------------------------------------------------------------
-*/
+// ==========================================
+// DEPLOY BACKEND
+// ==========================================
 
-const deployBackend = async (repositoryUrl, projectName) => {
-    console.log("Starting backend deployment...");
+const deployBackend = async (
+    repositoryUrl,
+    projectName
+) => {
+
+    console.log(
+        "Starting backend deployment..."
+    );
 
     const appDirectory =
         `/home/ubuntu/deployments/${projectName}`;
@@ -198,44 +226,51 @@ const deployBackend = async (repositoryUrl, projectName) => {
         `clouddeploy-${projectName}`;
 
     const commands = [
+
+        // Create deployment directory
         "mkdir -p /home/ubuntu/deployments",
 
-        /*
-         * IMPORTANT:
-         * Delete old PM2 process BEFORE checking the port.
-         */
+        // Remove previous PM2 process
         `pm2 delete ${processName} || true`,
 
+        // Remove previous project
         `rm -rf ${appDirectory}`,
 
+        // Clone repository
         `git clone ${repositoryUrl} ${appDirectory}`,
 
+        // Install backend dependencies
         `cd ${appDirectory}/server`,
 
         "npm install",
 
-        /*
-         * Find available port AFTER deleting old process.
-         */
+        // Find available port
         `PORT=5001; while ss -ltn | awk '{print $4}' | grep -q ":$PORT$"; do PORT=$((PORT+1)); done; echo $PORT > ${appDirectory}/port.txt`,
 
-        `PORT=$(cat ${appDirectory}/port.txt)`,
+        // Start PM2 with the detected port
+        `PORT=$(cat ${appDirectory}/port.txt) && export PORT && pm2 start server.js --name ${processName} --cwd ${appDirectory}/server --update-env`,
 
-        `PORT=$PORT pm2 start server.js --name ${processName} --cwd ${appDirectory}/server`,
-
+        // Save PM2 configuration
         "pm2 save",
 
+        // Get process PID
         `pm2 pid ${processName}`,
 
+        // Output deployed port
         `echo DEPLOYED_PORT=$(cat ${appDirectory}/port.txt)`
     ];
 
-    const result = await executeCommand(commands);
+    const result =
+        await executeCommand(commands);
 
-    console.log("Backend deployment completed!");
+    console.log(
+        "Backend deployment completed!"
+    );
 
     const portMatch =
-        result.output.match(/DEPLOYED_PORT=(\d+)/);
+        result.output.match(
+            /DEPLOYED_PORT=(\d+)/
+        );
 
     if (!portMatch) {
         throw new Error(
@@ -243,21 +278,27 @@ const deployBackend = async (repositoryUrl, projectName) => {
         );
     }
 
-    const port = Number(portMatch[1]);
+    const port =
+        Number(portMatch[1]);
 
-    console.log("Backend deployed on port:", port);
+    console.log(
+        "Backend deployed on port:",
+        port
+    );
 
-    /*
-     * Automatically configure Nginx
-     */
+
+    // Configure Nginx
     const nginxResult =
-        await configureNginx(projectName, port);
+        await configureNginx(
+            projectName,
+            port
+        );
 
-    /*
-     * Verify backend
-     */
+
+    // Verify backend
     const verification =
         await verifyBackend(port);
+
 
     return {
         ...result,
