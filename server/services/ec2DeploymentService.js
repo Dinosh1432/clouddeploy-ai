@@ -205,19 +205,14 @@ const verifyBackend = async (port) => {
     };
 };
 
-
 // ==========================================
 // DEPLOY BACKEND
 // ==========================================
-
 const deployBackend = async (
     repositoryUrl,
     projectName
 ) => {
-
-    console.log(
-        "Starting backend deployment..."
-    );
+    console.log("Starting backend deployment...");
 
     const appDirectory =
         `/home/ubuntu/deployments/${projectName}`;
@@ -226,46 +221,48 @@ const deployBackend = async (
         `clouddeploy-${projectName}`;
 
     const commands = [
+    // Create deployment directory
+    "mkdir -p /home/ubuntu/deployments",
 
-        // Create deployment directory
-        "mkdir -p /home/ubuntu/deployments",
+    // Remove previous PM2 process
+    `pm2 delete ${processName} || true`,
 
-        // Remove previous PM2 process
-        `pm2 delete ${processName} || true`,
+    // Remove old project
+    `rm -rf ${appDirectory}`,
 
-        // Remove previous project
-        `rm -rf ${appDirectory}`,
+    // Clone fresh repository
+    `git clone ${repositoryUrl} ${appDirectory}`,
 
-        // Clone repository
-        `git clone ${repositoryUrl} ${appDirectory}`,
+    // Restore persistent environment file
+    `cp /home/ubuntu/deployments/env/clouddeploy-ai.env ${appDirectory}/server/.env`,
 
-        // Install backend dependencies
-        `cd ${appDirectory}/server`,
+    // Secure environment file
+    `chmod 600 ${appDirectory}/server/.env`,
 
-        "npm install",
+    // Install backend dependencies
+    `cd ${appDirectory}/server`,
+    "npm install",
 
-        // Find available port
-        `PORT=5001; while ss -ltn | awk '{print $4}' | grep -q ":$PORT$"; do PORT=$((PORT+1)); done; echo $PORT > ${appDirectory}/port.txt`,
+    // Find available port
+    `PORT=5001; while ss -ltn | awk '{print $4}' | grep -q ":$PORT$"; do PORT=$((PORT+1)); done; echo $PORT > ${appDirectory}/port.txt`,
 
-        // Start PM2 with the detected port
-        `PORT=$(cat ${appDirectory}/port.txt) && export PORT && pm2 start server.js --name ${processName} --cwd ${appDirectory}/server --update-env`,
+    // Start PM2
+    `PORT=$(cat ${appDirectory}/port.txt) && export PORT && pm2 start server.js --name ${processName} --cwd ${appDirectory}/server --update-env`,
 
-        // Save PM2 configuration
-        "pm2 save",
+    // Save PM2 configuration
+    "pm2 save",
 
-        // Get process PID
-        `pm2 pid ${processName}`,
+    // Get process PID
+    `pm2 pid ${processName}`,
 
-        // Output deployed port
-        `echo DEPLOYED_PORT=$(cat ${appDirectory}/port.txt)`
-    ];
+    // Output deployed port
+    `echo DEPLOYED_PORT=$(cat ${appDirectory}/port.txt)`
+];
 
     const result =
         await executeCommand(commands);
 
-    console.log(
-        "Backend deployment completed!"
-    );
+    console.log("Backend deployment completed!");
 
     const portMatch =
         result.output.match(
@@ -286,7 +283,6 @@ const deployBackend = async (
         port
     );
 
-
     // Configure Nginx
     const nginxResult =
         await configureNginx(
@@ -294,11 +290,9 @@ const deployBackend = async (
             port
         );
 
-
     // Verify backend
     const verification =
         await verifyBackend(port);
-
 
     return {
         ...result,
