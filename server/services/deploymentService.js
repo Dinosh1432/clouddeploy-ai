@@ -144,16 +144,31 @@ const buildFrontend = async (
         );
 
         console.log(
-            "Injecting VITE_API_URL:",
-            apiUrl
-        );
+    "Injecting VITE_API_URL:",
+    apiUrl
+);
 
+            const envFilePath = path.join(
+                clientDirectory,
+                ".env.production.local"
+            );
 
-        await executeLocalCommand(
-            `set "VITE_API_URL=${apiUrl}" && npm run build`,
-            clientDirectory
-        );
+            fs.writeFileSync(
+                envFilePath,
+                `VITE_API_URL=${apiUrl}\n`,
+                "utf8"
+            );
 
+            try {
+                await executeLocalCommand(
+                    "npm run build",
+                    clientDirectory
+                );
+            } finally {
+                if (fs.existsSync(envFilePath)) {
+                    fs.unlinkSync(envFilePath);
+                }
+            }
 
         const distDirectory =
             path.join(
@@ -208,15 +223,31 @@ const buildFrontend = async (
 
 
         console.log(
-            "Injecting VITE_API_URL:",
-            apiUrl
-        );
+    "Injecting VITE_API_URL:",
+    apiUrl
+);
 
+const envFilePath = path.join(
+    repositoryPath,
+    ".env.production.local"
+);
 
-        await executeLocalCommand(
-            `set "VITE_API_URL=${apiUrl}" && npm run build`,
-            repositoryPath
-        );
+fs.writeFileSync(
+    envFilePath,
+    `VITE_API_URL=${apiUrl}\n`,
+    "utf8"
+);
+
+try {
+    await executeLocalCommand(
+        "npm run build",
+        repositoryPath
+    );
+} finally {
+    if (fs.existsSync(envFilePath)) {
+        fs.unlinkSync(envFilePath);
+    }
+}
 
 
         const distDirectory =
