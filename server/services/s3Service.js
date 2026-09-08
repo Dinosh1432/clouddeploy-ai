@@ -76,17 +76,19 @@ const createDeploymentBucket = async () => {
         // --------------------------------
 
         await s3Client.send(
-            new PutBucketWebsiteCommand({
-                Bucket: bucketName,
+    new PutBucketWebsiteCommand({
+        Bucket: bucketName,
 
-                WebsiteConfiguration: {
-                    IndexDocument: {
-                        Suffix: "index.html"
-                    }
-                }
-            })
-        );
-
+        WebsiteConfiguration: {
+            IndexDocument: {
+                Suffix: "index.html"
+            },
+            ErrorDocument: {
+                Key: "index.html"
+            }
+        }
+    })
+);
 
         console.log(
             "S3 website hosting enabled"
