@@ -4,7 +4,9 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Deploy from "./pages/Deploy";
+import Deployments from "./pages/Deployments";
 import Projects from "./pages/Projects";
+import DeploymentDetails from "./pages/DeploymentDetails";
 
 function App() {
     return (
@@ -39,6 +41,14 @@ function App() {
                     path="/deploy"
                     element={<Deploy />}
                 />
+                <Route 
+                path="/deployments" 
+                element={<Deployments />} />
+
+
+                <Route
+                path="/deployments/:id"
+                element={<DeploymentDetails />} />
 
             </Routes>
 

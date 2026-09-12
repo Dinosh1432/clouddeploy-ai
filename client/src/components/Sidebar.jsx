@@ -29,9 +29,9 @@ function Sidebar() {
                     Projects
                 </a>
 
-                <a href="/deploy">
-                    <Rocket size={20} />
-                    Deployments
+                <a href="/deployments">
+                <Rocket size={20} />
+                Deployments
                 </a>
 
                 <a href="#">

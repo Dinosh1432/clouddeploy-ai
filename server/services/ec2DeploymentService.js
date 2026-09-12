@@ -121,13 +121,7 @@ location /${projectSlug}/api/ {
     proxy_set_header Host $host;
     proxy_cache_bypass $http_upgrade;
 
-    add_header Access-Control-Allow-Origin "*" always;
-    add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
-    add_header Access-Control-Allow-Headers "Origin, Content-Type, Accept, Authorization" always;
-
-    if ($request_method = OPTIONS) {
-        return 204;
-    }
+   
 }
 `;
 
