@@ -32,13 +32,14 @@ const createProjectSlug = (projectName) => {
 
 
 const getProjectApiUrl = (projectName) => {
-
     const projectSlug =
         createProjectSlug(projectName);
 
-    return `http://3.111.169.23/${projectSlug}/api`;
-};
+    const publicIp =
+        process.env.EC2_PUBLIC_IP;
 
+    return `http://${publicIp}/${projectSlug}/api`;
+};
 const cloneRepository = async (repositoryUrl) => {
 
     const tempDirectory = fs.mkdtempSync(
