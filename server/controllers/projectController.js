@@ -33,10 +33,10 @@ const parseGithubUrl = (url) => {
 // Create a project
 const createProject = async (req, res) => {
 
-    
     try {
         console.log("CREATE PROJECT API HIT");
-    console.log("BODY:", req.body);
+        console.log("BODY:", req.body);
+
         const {
             name,
             description,
@@ -189,10 +189,57 @@ const getProjects = async (req, res) => {
 };
 
 
+
+// Delete logged-in user's project
+const deleteProject = async (req, res) => {
+
+    try {
+
+        const project = await Project.findOne({
+            _id: req.params.id,
+            owner: req.user.userId
+        });
+
+
+        if (!project) {
+            return res.status(404).json({
+                message: "Project not found"
+            });
+        }
+
+
+        await Project.deleteOne({
+            _id: project._id
+        });
+
+
+        res.status(200).json({
+            message: "Project deleted successfully"
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "Delete project error:",
+            error
+        );
+
+
+        res.status(500).json({
+            message: "Server error"
+        });
+    }
+};
+
+
+
 module.exports = {
 
     createProject,
 
-    getProjects
+    getProjects,
+
+    deleteProject
 
 };

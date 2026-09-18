@@ -7,6 +7,11 @@ import Deploy from "./pages/Deploy";
 import Deployments from "./pages/Deployments";
 import Projects from "./pages/Projects";
 import DeploymentDetails from "./pages/DeploymentDetails";
+import GitHub from "./pages/GitHub";
+import Logs from "./pages/Logs";
+import Settings from "./pages/Settings";
+
+import AWS from "./pages/AWS";
 
 function App() {
     return (
@@ -49,6 +54,25 @@ function App() {
                 <Route
                 path="/deployments/:id"
                 element={<DeploymentDetails />} />
+
+                <Route 
+                path="/aws"
+                 element={<AWS />} />
+                 <Route
+                 path="/github"
+                 element={<GitHub />}
+                />
+
+                <Route
+                path="/logs"
+                element={<Logs />}
+                />
+                <Route
+                    path="/settings"
+                    element={<Settings />}
+                />
+
+        
 
             </Routes>
 

@@ -5,12 +5,18 @@ const authRoutes = require("./routes/authRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const githubRoutes = require("./routes/githubRoutes");
 const deploymentRoutes = require("./routes/deploymentRoutes");
+const awsRoutes =
+    require("./routes/awsRoutes");
+
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-
+app.use(
+    "/api/aws",
+    awsRoutes
+);
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/github", githubRoutes);

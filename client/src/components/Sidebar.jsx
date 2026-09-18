@@ -9,7 +9,18 @@ import {
     LogOut
 } from "lucide-react";
 
+import { Link, useNavigate } from "react-router-dom";
+
 function Sidebar() {
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+
+        navigate("/login");
+    };
+
     return (
         <aside className="sidebar">
 
@@ -19,46 +30,46 @@ function Sidebar() {
 
             <nav>
 
-                <a href="/dashboard">
+                <Link to="/dashboard">
                     <LayoutDashboard size={20} />
                     Dashboard
-                </a>
+                </Link>
 
-                <a href="/projects">
+                <Link to="/projects">
                     <FolderGit2 size={20} />
                     Projects
-                </a>
+                </Link>
 
-                <a href="/deployments">
-                <Rocket size={20} />
-                Deployments
-                </a>
+                <Link to="/deployments">
+                    <Rocket size={20} />
+                    Deployments
+                </Link>
 
-                <a href="#">
+                <Link to="/aws">
                     <Cloud size={20} />
                     AWS
-                </a>
+                </Link>
 
-                <a href="#">
+                <Link to="/github">
                     <GitBranch size={20} />
                     GitHub
-                </a>
+                </Link>
 
-                <a href="#">
+                <Link to="/logs">
                     <FileText size={20} />
                     Logs
-                </a>
+                </Link>
 
             </nav>
 
             <div className="sidebar-bottom">
 
-                <a href="#">
+                <Link to="/settings">
                     <Settings size={20} />
                     Settings
-                </a>
+                </Link>
 
-                <button>
+                <button onClick={handleLogout}>
                     <LogOut size={20} />
                     Logout
                 </button>

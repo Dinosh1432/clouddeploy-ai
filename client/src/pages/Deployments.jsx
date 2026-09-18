@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
 
 function Deployments() {
@@ -7,15 +8,28 @@ function Deployments() {
     const [error, setError] = useState("");
     const [openLogs, setOpenLogs] = useState(null);
     const [retryingId, setRetryingId] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
+
+    const [searchParams] = useSearchParams();
+
+    const projectId = searchParams.get("projectId");
 
     useEffect(() => {
         const fetchDeployments = async () => {
             try {
-                const response = await api.get("/deployment");
+                setLoading(true);
+                setError("");
+
+                const url = projectId
+                    ? `/deployment?projectId=${projectId}`
+                    : "/deployment";
+
+                const response = await api.get(url);
 
                 setDeployments(
                     response.data.deployments || []
                 );
+
             } catch (err) {
                 console.error(err);
 
@@ -23,13 +37,20 @@ function Deployments() {
                     err.response?.data?.message ||
                     "Failed to load deployments"
                 );
+
             } finally {
                 setLoading(false);
             }
         };
 
         fetchDeployments();
-    }, []);
+
+    }, [projectId]);
+
+
+    // ==========================================
+    // Toggle logs
+    // ==========================================
 
     const toggleLogs = (deploymentId) => {
         setOpenLogs(
@@ -39,20 +60,77 @@ function Deployments() {
         );
     };
 
-    const retryDeployment = async (projectId, deploymentId) => {
+
+    // ==========================================
+    // Delete deployment history
+    // ==========================================
+
+    const deleteDeployment = async (deploymentId) => {
+        const confirmed = window.confirm(
+            "Are you sure you want to delete this deployment history?"
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setDeletingId(deploymentId);
+            setError("");
+
+            await api.delete(
+                `/deployment/${deploymentId}`
+            );
+
+            setDeployments((currentDeployments) =>
+                currentDeployments.filter(
+                    (deployment) =>
+                        deployment._id !== deploymentId
+                )
+            );
+
+        } catch (err) {
+            console.error(err);
+
+            alert(
+                err.response?.data?.message ||
+                "Failed to delete deployment history"
+            );
+
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+
+    // ==========================================
+    // Retry deployment
+    // ==========================================
+
+    const retryDeployment = async (
+        projectId,
+        deploymentId
+    ) => {
         if (!projectId) {
-            alert("Project information is missing.");
+            alert(
+                "Project information is missing."
+            );
             return;
         }
 
         try {
             setRetryingId(deploymentId);
 
-            await api.post("/deployment/deploy", {
-                projectId
-            });
+            await api.post(
+                "/deployment/deploy",
+                {
+                    projectId
+                }
+            );
 
-            alert("Deployment started successfully.");
+            alert(
+                "Deployment started successfully."
+            );
 
             window.location.reload();
 
@@ -63,10 +141,16 @@ function Deployments() {
                 err.response?.data?.message ||
                 "Retry deployment failed"
             );
+
         } finally {
             setRetryingId(null);
         }
     };
+
+
+    // ==========================================
+    // Loading
+    // ==========================================
 
     if (loading) {
         return (
@@ -77,10 +161,17 @@ function Deployments() {
                     background: "#f8fafc"
                 }}
             >
-                <h2>Loading deployments...</h2>
+                <h2>
+                    Loading deployments...
+                </h2>
             </div>
         );
     }
+
+
+    // ==========================================
+    // UI
+    // ==========================================
 
     return (
         <div
@@ -92,22 +183,44 @@ function Deployments() {
                 background: "#f8fafc"
             }}
         >
-            <h1
-                style={{
-                    marginBottom: "8px"
-                }}
-            >
-                Deployments
-            </h1>
 
-            <p
+            {/* Header */}
+
+            <div
                 style={{
-                    color: "#64748b",
-                    marginTop: 0
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "15px",
+                    flexWrap: "wrap"
                 }}
             >
-                View and manage your application deployments
-            </p>
+                <div>
+                    <h1
+                        style={{
+                            marginBottom: "8px"
+                        }}
+                    >
+                        {projectId
+                            ? "Project Deployments"
+                            : "Deployments"}
+                    </h1>
+
+                    <p
+                        style={{
+                            color: "#64748b",
+                            marginTop: 0
+                        }}
+                    >
+                        {projectId
+                            ? "Deployment history for this project"
+                            : "View and manage your application deployments"}
+                    </p>
+                </div>
+            </div>
+
+
+            {/* Error */}
 
             {error && (
                 <div
@@ -119,34 +232,49 @@ function Deployments() {
                         color: "#991b1b"
                     }}
                 >
-                    <strong>Error:</strong> {error}
+                    <strong>
+                        Error:
+                    </strong>{" "}
+                    {error}
                 </div>
             )}
 
-            {!error && deployments.length === 0 && (
-                <div
-                    style={{
-                        marginTop: "25px",
-                        padding: "30px",
-                        background: "#fff",
-                        borderRadius: "14px",
-                        border: "1px solid #e2e8f0",
-                        textAlign: "center"
-                    }}
-                >
-                    <h3>No deployments found</h3>
 
-                    <p
+            {/* Empty */}
+
+            {!error &&
+                deployments.length === 0 && (
+                    <div
                         style={{
-                            color: "#64748b"
+                            marginTop: "25px",
+                            padding: "30px",
+                            background: "#fff",
+                            borderRadius: "14px",
+                            border: "1px solid #e2e8f0",
+                            textAlign: "center"
                         }}
                     >
-                        Deploy a project to see its deployment history here.
-                    </p>
-                </div>
-            )}
+                        <h3>
+                            No deployments found
+                        </h3>
+
+                        <p
+                            style={{
+                                color: "#64748b"
+                            }}
+                        >
+                            {projectId
+                                ? "This project has no deployment history yet."
+                                : "Deploy a project to see its deployment history here."}
+                        </p>
+                    </div>
+                )}
+
+
+            {/* Deployment Cards */}
 
             {deployments.map((deployment) => (
+
                 <div
                     key={deployment._id}
                     style={{
@@ -159,7 +287,9 @@ function Deployments() {
                             "0 2px 8px rgba(0,0,0,0.04)"
                     }}
                 >
+
                     {/* Header */}
+
                     <div
                         style={{
                             display: "flex",
@@ -168,7 +298,9 @@ function Deployments() {
                             gap: "20px"
                         }}
                     >
+
                         <div>
+
                             <h2
                                 style={{
                                     margin: 0
@@ -190,13 +322,18 @@ function Deployments() {
                                     deployment.createdAt
                                 ).toLocaleString()}
                             </p>
+
                         </div>
+
+
+                        {/* Status */}
 
                         <div
                             style={{
                                 padding: "8px 14px",
                                 borderRadius: "20px",
                                 fontWeight: "600",
+
                                 background:
                                     deployment.status ===
                                     "success"
@@ -205,6 +342,7 @@ function Deployments() {
                                           "failed"
                                         ? "#fee2e2"
                                         : "#fef3c7",
+
                                 color:
                                     deployment.status ===
                                     "success"
@@ -215,15 +353,20 @@ function Deployments() {
                                         : "#92400e"
                             }}
                         >
-                            {deployment.status === "success"
+                            {deployment.status ===
+                            "success"
                                 ? "✅ Success"
-                                : deployment.status === "failed"
+                                : deployment.status ===
+                                  "failed"
                                 ? "❌ Failed"
                                 : `⏳ ${deployment.status}`}
                         </div>
+
                     </div>
 
+
                     {/* Frontend */}
+
                     {deployment.frontend && (
                         <div
                             style={{
@@ -234,6 +377,7 @@ function Deployments() {
                                 border: "1px solid #e2e8f0"
                             }}
                         >
+
                             <h3
                                 style={{
                                     marginTop: 0
@@ -242,9 +386,13 @@ function Deployments() {
                                 Frontend
                             </h3>
 
-                            {deployment.frontend.bucketName && (
+
+                            {deployment.frontend
+                                .bucketName && (
                                 <p>
-                                    <strong>S3 Bucket:</strong>{" "}
+                                    <strong>
+                                        S3 Bucket:
+                                    </strong>{" "}
                                     {
                                         deployment.frontend
                                             .bucketName
@@ -252,9 +400,14 @@ function Deployments() {
                                 </p>
                             )}
 
-                            {deployment.frontend.websiteUrl && (
+
+                            {deployment.frontend
+                                .websiteUrl && (
                                 <p>
-                                    <strong>Application:</strong>{" "}
+                                    <strong>
+                                        Application:
+                                    </strong>{" "}
+
                                     <a
                                         href={
                                             deployment.frontend
@@ -268,19 +421,26 @@ function Deployments() {
                                 </p>
                             )}
 
-                            {deployment.frontend.apiUrl && (
+
+                            {deployment.frontend
+                                .apiUrl && (
                                 <p>
-                                    <strong>API URL:</strong>{" "}
+                                    <strong>
+                                        API URL:
+                                    </strong>{" "}
                                     {
                                         deployment.frontend
                                             .apiUrl
                                     }
                                 </p>
                             )}
+
                         </div>
                     )}
 
+
                     {/* Backend */}
+
                     <div
                         style={{
                             marginTop: "18px",
@@ -290,6 +450,7 @@ function Deployments() {
                             border: "1px solid #e2e8f0"
                         }}
                     >
+
                         <h3
                             style={{
                                 marginTop: 0
@@ -298,19 +459,27 @@ function Deployments() {
                             Backend
                         </h3>
 
+
                         {deployment.backend?.status ? (
                             <>
+
                                 <p>
-                                    <strong>Status:</strong>{" "}
+                                    <strong>
+                                        Status:
+                                    </strong>{" "}
                                     {
                                         deployment.backend
                                             .status
                                     }
                                 </p>
 
-                                {deployment.backend.port && (
+
+                                {deployment.backend
+                                    .port && (
                                     <p>
-                                        <strong>Port:</strong>{" "}
+                                        <strong>
+                                            Port:
+                                        </strong>{" "}
                                         {
                                             deployment.backend
                                                 .port
@@ -318,9 +487,13 @@ function Deployments() {
                                     </p>
                                 )}
 
-                                {deployment.backend.httpStatus && (
+
+                                {deployment.backend
+                                    .httpStatus && (
                                     <p>
-                                        <strong>HTTP Status:</strong>{" "}
+                                        <strong>
+                                            HTTP Status:
+                                        </strong>{" "}
                                         {
                                             deployment.backend
                                                 .httpStatus
@@ -328,17 +501,23 @@ function Deployments() {
                                     </p>
                                 )}
 
-                                {deployment.backend.apiUrl && (
+
+                                {deployment.backend
+                                    .apiUrl && (
                                     <p>
-                                        <strong>API URL:</strong>{" "}
+                                        <strong>
+                                            API URL:
+                                        </strong>{" "}
                                         {
                                             deployment.backend
                                                 .apiUrl
                                         }
                                     </p>
                                 )}
+
                             </>
                         ) : (
+
                             <p
                                 style={{
                                     color: "#64748b"
@@ -346,10 +525,14 @@ function Deployments() {
                             >
                                 Backend not required for this project.
                             </p>
+
                         )}
+
                     </div>
 
+
                     {/* Error */}
+
                     {deployment.error && (
                         <div
                             style={{
@@ -360,12 +543,16 @@ function Deployments() {
                                 color: "#991b1b"
                             }}
                         >
-                            <strong>Deployment Error:</strong>{" "}
+                            <strong>
+                                Deployment Error:
+                            </strong>{" "}
                             {deployment.error}
                         </div>
                     )}
 
+
                     {/* Action Buttons */}
+
                     <div
                         style={{
                             display: "flex",
@@ -374,13 +561,17 @@ function Deployments() {
                             flexWrap: "wrap"
                         }}
                     >
+
+                        {/* View Details */}
+
                         <button
                             onClick={() =>
                                 (window.location.href =
                                     `/deployments/${deployment._id}`)
                             }
                             style={{
-                                padding: "10px 18px",
+                                padding:
+                                    "10px 18px",
                                 border: "none",
                                 borderRadius: "8px",
                                 cursor: "pointer",
@@ -392,29 +583,42 @@ function Deployments() {
                             View Details
                         </button>
 
+
+                        {/* View Logs */}
+
                         <button
                             onClick={() =>
-                                toggleLogs(deployment._id)
+                                toggleLogs(
+                                    deployment._id
+                                )
                             }
                             style={{
-                                padding: "10px 18px",
-                                border: "1px solid #cbd5e1",
+                                padding:
+                                    "10px 18px",
+                                border:
+                                    "1px solid #cbd5e1",
                                 borderRadius: "8px",
                                 cursor: "pointer",
                                 background: "#fff",
                                 fontWeight: "600"
                             }}
                         >
-                            {openLogs === deployment._id
+                            {openLogs ===
+                            deployment._id
                                 ? "Hide Logs"
                                 : "View Logs"}
                         </button>
 
-                        {deployment.status === "failed" && (
+
+                        {/* Retry */}
+
+                        {deployment.status ===
+                            "failed" && (
                             <button
                                 onClick={() =>
                                     retryDeployment(
-                                        deployment.project?._id,
+                                        deployment
+                                            .project?._id,
                                         deployment._id
                                     )
                                 }
@@ -423,17 +627,22 @@ function Deployments() {
                                     deployment._id
                                 }
                                 style={{
-                                    padding: "10px 18px",
+                                    padding:
+                                        "10px 18px",
                                     border: "none",
                                     borderRadius: "8px",
+
                                     cursor:
                                         retryingId ===
                                         deployment._id
                                             ? "not-allowed"
                                             : "pointer",
-                                    background: "#dc2626",
+
+                                    background:
+                                        "#dc2626",
                                     color: "#fff",
                                     fontWeight: "600",
+
                                     opacity:
                                         retryingId ===
                                         deployment._id
@@ -441,14 +650,60 @@ function Deployments() {
                                             : 1
                                 }}
                             >
-                                {retryingId === deployment._id
+                                {retryingId ===
+                                deployment._id
                                     ? "Retrying..."
                                     : "Retry Deployment"}
                             </button>
                         )}
+
+
+                        {/* Delete History */}
+
+                        <button
+                            onClick={() =>
+                                deleteDeployment(
+                                    deployment._id
+                                )
+                            }
+                            disabled={
+                                deletingId ===
+                                deployment._id
+                            }
+                            style={{
+                                padding:
+                                    "10px 18px",
+                                border: "none",
+                                borderRadius: "8px",
+
+                                cursor:
+                                    deletingId ===
+                                    deployment._id
+                                        ? "not-allowed"
+                                        : "pointer",
+
+                                background: "#7f1d1d",
+                                color: "#fff",
+                                fontWeight: "600",
+
+                                opacity:
+                                    deletingId ===
+                                    deployment._id
+                                        ? 0.7
+                                        : 1
+                            }}
+                        >
+                            {deletingId ===
+                            deployment._id
+                                ? "Deleting..."
+                                : "🗑 Delete History"}
+                        </button>
+
                     </div>
 
+
                     {/* Logs */}
+
                     {openLogs === deployment._id && (
                         <div
                             style={{
@@ -461,6 +716,7 @@ function Deployments() {
                                     "Consolas, monospace"
                             }}
                         >
+
                             <h3
                                 style={{
                                     color: "#fff",
@@ -470,11 +726,18 @@ function Deployments() {
                                 Deployment Logs
                             </h3>
 
-                            {deployment.logs?.length > 0 ? (
+
+                            {deployment.logs?.length >
+                            0 ? (
                                 deployment.logs.map(
-                                    (log, index) => (
+                                    (
+                                        log,
+                                        index
+                                    ) => (
                                         <div
-                                            key={index}
+                                            key={
+                                                index
+                                            }
                                             style={{
                                                 padding:
                                                     "7px 0",
@@ -482,9 +745,11 @@ function Deployments() {
                                                     "1px solid #334155"
                                             }}
                                         >
+
                                             <span
                                                 style={{
-                                                    color: "#22c55e",
+                                                    color:
+                                                        "#22c55e",
                                                     marginRight:
                                                         "8px"
                                                 }}
@@ -493,18 +758,24 @@ function Deployments() {
                                             </span>
 
                                             {log}
+
                                         </div>
                                     )
                                 )
                             ) : (
+
                                 <p>
                                     No logs available.
                                 </p>
+
                             )}
+
                         </div>
                     )}
+
                 </div>
             ))}
+
         </div>
     );
 }
