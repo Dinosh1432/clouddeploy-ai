@@ -30,13 +30,16 @@ const createProjectSlug = (projectName) => {
         .replace(/^-+|-+$/g, "");
 };
 
-
 const getProjectApiUrl = (projectName) => {
+
     const projectSlug =
         createProjectSlug(projectName);
 
-    const publicIp =
-        process.env.EC2_PUBLIC_IP;
+    const publicIp = process.env.EC2_PUBLIC_IP;
+
+    if (!publicIp) {
+        throw new Error("EC2_PUBLIC_IP is not configured");
+    }
 
     return `http://${publicIp}/${projectSlug}/api`;
 };
