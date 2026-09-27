@@ -657,48 +657,6 @@ Provides deployment history, logs, project management, GitHub information, and A
 
 ---
 
-# 📸 Screenshots
-
-Add your project screenshots below these sections.
-
-## Dashboard
-
-```text
-Add Dashboard screenshot here
-```
-
-## Projects
-
-```text
-Add Projects screenshot here
-```
-
-## Deployments
-
-```text
-Add Deployments screenshot here
-```
-
-## AWS Resources
-
-```text
-Add AWS Resources screenshot here
-```
-
-## GitHub Integration
-
-```text
-Add GitHub screenshot here
-```
-
-## Deployment Logs
-
-```text
-Add Logs screenshot here
-```
-
----
-
 # 🔮 Future Enhancements
 
 Possible future improvements include:
